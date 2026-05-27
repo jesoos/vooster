@@ -714,6 +714,12 @@ bash scripts/completion-check.sh
 [원 개발자 확인 질문 목록](../questions/2026-05-27-original-developer-questions.md)으로
 따로 정리했습니다.
 
+추가로, `greatSumini/cc-system`과의 관계는
+[cc-system FCG 관계 분석](2026-05-27-cc-system-fcg-relation.md)에 분리했고,
+Vooster 최초 커밋 자체는
+[최초 커밋 재분석](2026-05-27-vooster-initial-commit-reanalysis.md)에 더 엄격히
+정리했습니다.
+
 하지만 다음 사실은 충분히 강하게 말할 수 있습니다.
 
 - 이 저장소는 사람이 앱 코드를 직접 전부 작성한 흔적보다, 에이전트 루프를

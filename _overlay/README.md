@@ -11,6 +11,10 @@ upstream 소유 파일과 독립적으로 유지하세요. upstream의 문서, �
 - [analyses/](analyses/): 저장소, 프로세스, 아키텍처, 유지보수 분석.
   - [2026-05-27-repo-origin-analysis.md](analyses/2026-05-27-repo-origin-analysis.md):
     저장소 생성 과정, AI 에이전트 기반 빌드 흐름, 재현 청사진 분석.
+  - [2026-05-27-cc-system-fcg-relation.md](analyses/2026-05-27-cc-system-fcg-relation.md):
+    `greatSumini/cc-system`과 Vooster 하네스의 선후 관계 및 FCG 개념 출처 분석.
+  - [2026-05-27-vooster-initial-commit-reanalysis.md](analyses/2026-05-27-vooster-initial-commit-reanalysis.md):
+    Vooster 최초 커밋 `826f602`의 구성과 의미 재분석.
 - [questions/](questions/): 저장소 증거만으로 확인하기 어려운 내용을 원 개발자에게
   확인하기 위한 질문 목록.
   - [2026-05-27-original-developer-questions.md](questions/2026-05-27-original-developer-questions.md):
