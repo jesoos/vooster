@@ -15,13 +15,19 @@ upstream 소유 파일과 독립적으로 유지하세요. upstream의 문서, �
     `greatSumini/cc-system`과 Vooster 하네스의 선후 관계 및 FCG 개념 출처 분석.
   - [2026-05-27-vooster-initial-commit-reanalysis.md](analyses/2026-05-27-vooster-initial-commit-reanalysis.md):
     Vooster 최초 커밋 `826f602`의 구성과 의미 재분석.
+  - [2026-06-02-fcg-methodology-positioning.md](analyses/2026-06-02-fcg-methodology-positioning.md):
+    FCG 개발 방식의 위치, 원 개발자의 학습 경로 추정, 기존 방법론과의 비교.
+  - [2026-06-02-reproduction-lab-and-slash-goal.md](analyses/2026-06-02-reproduction-lab-and-slash-goal.md):
+    `my-vooster-lab` 재현 실험, `/goal` 세션 전략, 자동 commit/push 구조 정리.
 - [questions/](questions/): 저장소 증거만으로 확인하기 어려운 내용을 원 개발자에게
   확인하기 위한 질문 목록.
   - [2026-05-27-original-developer-questions.md](questions/2026-05-27-original-developer-questions.md):
     생성 과정, 외부 자료, 실행 환경, 의사결정 배경 확인 질문.
 - `notes/`: git에 남길 가치가 있는 작업 노트.
 - `artifacts/`: 보존할 가치가 있는 생성물 또는 수집 자료.
-- `prompts/`: 이 fork에서만 쓰는 프롬프트와 운영 레시피.
+- [prompts/](prompts/): 이 fork에서만 쓰는 프롬프트와 운영 레시피.
+  - [2026-06-02-my-vooster-lab-long-goal-prompt.md](prompts/2026-06-02-my-vooster-lab-long-goal-prompt.md):
+    장시간 FCG 실험을 위해 새 Codex 세션에 붙여 넣는 `/goal` 프롬프트.
 - `patches/`: 이 fork에만 해당하는 패치 노트 또는 패치 파일.
 - `sync-log/`: upstream sync와 충돌 해결 기록.
 
