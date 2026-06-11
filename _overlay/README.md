@@ -3,7 +3,7 @@
 이 디렉터리는 upstream 저장소 위에 얹는 이 fork 전용 자료를 보관합니다.
 
 upstream 소유 파일과 독립적으로 유지하세요. upstream의 문서, 목표, 스크립트,
-앱 코드에서 [_overlay/](./)로 역참조를 만들지 않으면 upstream sync 때 충돌
+앱 코드에서 [\_overlay/](./)로 역참조를 만들지 않으면 upstream sync 때 충돌
 가능성을 줄일 수 있습니다.
 
 ## 내용
@@ -19,6 +19,8 @@ upstream 소유 파일과 독립적으로 유지하세요. upstream의 문서, �
     FCG 개발 방식의 위치, 원 개발자의 학습 경로 추정, 기존 방법론과의 비교.
   - [2026-06-02-reproduction-lab-and-slash-goal.md](analyses/2026-06-02-reproduction-lab-and-slash-goal.md):
     `my-vooster-lab` 재현 실험, `/goal` 세션 전략, 자동 commit/push 구조 정리.
+  - [2026-06-11-vooster-origin-method-reconstruction.md](analyses/2026-06-11-vooster-origin-method-reconstruction.md):
+    Vooster 개발 시작 순서와 저장소 증거 기반 재현 절차 정리.
 - [questions/](questions/): 저장소 증거만으로 확인하기 어려운 내용을 원 개발자에게
   확인하기 위한 질문 목록.
   - [2026-05-27-original-developer-questions.md](questions/2026-05-27-original-developer-questions.md):
@@ -28,6 +30,8 @@ upstream 소유 파일과 독립적으로 유지하세요. upstream의 문서, �
 - [prompts/](prompts/): 이 fork에서만 쓰는 프롬프트와 운영 레시피.
   - [2026-06-02-my-vooster-lab-long-goal-prompt.md](prompts/2026-06-02-my-vooster-lab-long-goal-prompt.md):
     장시간 FCG 실험을 위해 새 Codex 세션에 붙여 넣는 `/goal` 프롬프트.
+  - [2026-06-11-vooster-reproduction-prompt-guardrail.md](prompts/2026-06-11-vooster-reproduction-prompt-guardrail.md):
+    `vooster-from-zero` 재현 실험의 다음 프롬프트를 검증하는 게이트.
 - `patches/`: 이 fork에만 해당하는 패치 노트 또는 패치 파일.
 - `sync-log/`: upstream sync와 충돌 해결 기록.
 
