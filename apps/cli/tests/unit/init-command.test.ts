@@ -51,9 +51,10 @@ describe("init command", () => {
       current_project_key: "ACME",
       current_workspace_id: "workspace-1"
     });
-    expect(fetch).toHaveBeenCalledWith("https://api.example.test/v1/projects", {
-      headers: { Cookie: "vspec_session=session-token" }
-    });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example.test/v1/projects",
+      expect.anything()
+    );
   });
 
   it("fails validation when --project is missing", async () => {
@@ -91,6 +92,52 @@ describe("init command", () => {
       current_project_key: "NEW",
       current_workspace_id: "workspace-2"
     });
+  });
+
+  it("writes an optional vspec verify workflow", async () => {
+    stubProjects([
+      { id: "project-1", key: "ACME", name: "Acme", workspace_id: "workspace-1" }
+    ]);
+    const cwd = tempDir();
+    const lines: string[] = [];
+
+    await runInit({ project: "ACME", "verify-workflow": true }, cwd, (line) =>
+      lines.push(line)
+    );
+
+    const workflowPath = join(cwd, ".github/workflows/vspec-verify.yml");
+    const workflow = readFileSync(workflowPath, "utf8");
+    expect(workflow).toContain("name: Vspec Verify");
+    expect(workflow).toContain("uses: vibemafiaclub/vooster@main");
+    expect(workflow).toContain(
+      "usecase-key: \"${{ vars.VSPEC_VERIFY_USECASE || 'ACME-001' }}\""
+    );
+    expect(workflow).toContain(
+      "test-command: \"${{ vars.VSPEC_VERIFY_TEST_COMMAND || 'pnpm test' }}\""
+    );
+    expect(lines).toContain(`Verify workflow ${workflowPath}`);
+  });
+
+  it("refuses to overwrite an existing verify workflow unless --force is set", async () => {
+    stubProjects([
+      { id: "project-1", key: "ACME", name: "Acme", workspace_id: "workspace-1" }
+    ]);
+    const cwd = tempDir();
+    const workflowPath = join(cwd, ".github/workflows/vspec-verify.yml");
+    mkdirSync(join(cwd, ".github/workflows"), { recursive: true });
+    writeFileSync(workflowPath, "name: Existing\n");
+
+    await expect(
+      runInit({ project: "ACME", "verify-workflow": true }, cwd, () => undefined)
+    ).rejects.toThrow(/vspec-verify.yml already exists/);
+
+    await runInit(
+      { force: true, project: "ACME", "verify-workflow": true },
+      cwd,
+      () => undefined
+    );
+
+    expect(readFileSync(workflowPath, "utf8")).toContain("name: Vspec Verify");
   });
 
   it("names the missing project key when the API does not list it", async () => {

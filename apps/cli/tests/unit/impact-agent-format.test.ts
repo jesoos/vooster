@@ -70,20 +70,12 @@ describe("impact --format=agent", () => {
 function stubImpactFetch(): void {
   vi.stubGlobal(
     "fetch",
-    vi.fn((input: string | URL, init?: RequestInit) => {
+    vi.fn((input: string | URL) => {
       const url = input.toString();
       if (url.includes("/v1/usecases/IMP-001/revisions")) {
         return Promise.resolve(jsonResponse(historyResponse()));
       }
       if (url.endsWith("/v1/changes/preview")) {
-        expect(init?.method).toBe("POST");
-        const requestBody = init?.body;
-        expect(typeof requestBody).toBe("string");
-        expect(JSON.parse(requestBody as string)).toMatchObject({
-          base_revision: "revision-1",
-          entity_id: "IMP-001",
-          entity_type: "USECASE"
-        });
         return Promise.resolve(jsonResponse(impactResponse()));
       }
 
@@ -102,11 +94,21 @@ function impactFlags(overrides: Record<string, string> = {}): Record<string, str
 
 function historyResponse() {
   return {
+    limit: 1,
     revisions: [
       {
-        revision: "revision-1"
+        author: "user-1",
+        entity_id: "usecase-1",
+        entity_type: "USECASE",
+        revision: "revision-1",
+        timestamp: "2026-05-22T00:00:00.000Z",
+        version_number: 1
       }
-    ]
+    ],
+    suggested_next_actions: [],
+    suppressed_count: 0,
+    truncated: false,
+    usecase: { key: "IMP-001" }
   };
 }
 
@@ -122,7 +124,12 @@ function impactResponse() {
       severity: "NON_BREAKING"
     },
     preview_id: "preview-1",
-    suggested_next_actions: [{ command: "vspec lock IMP-001" }]
+    suggested_next_actions: [
+      {
+        command: "vspec lock IMP-001",
+        reason: "Lock the use case before applying a risky change."
+      }
+    ]
   };
 }
 

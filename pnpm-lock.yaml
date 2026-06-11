@@ -156,9 +156,15 @@ importers:
 
   apps/cli:
     dependencies:
+      '@oclif/core':
+        specifier: ^4.11.3
+        version: 4.11.3
       '@vooster/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   apps/www:
     dependencies:

@@ -10,7 +10,7 @@ type CommentAgentEnvelope<TData> = {
     session_id: null | string;
   };
   data: TData;
-  format_version: 1 | 2;
+  format_version: 1;
   suggested_next_actions: Array<{ command: string }>;
   warnings: unknown[];
 };
@@ -163,14 +163,28 @@ describe("comment --format=agent", () => {
 function stubFetch(body: unknown): void {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() =>
-      Promise.resolve({
-        headers: new Headers(),
-        json: () => Promise.resolve(body),
-        ok: true
-      } as Response)
-    )
+    vi.fn((input: string | URL) => {
+      const url = input.toString();
+      return Promise.resolve(
+        jsonResponse(url.endsWith("/sync/pull") ? syncPull() : body)
+      );
+    })
   );
+}
+
+function jsonResponse(body: unknown): Response {
+  return {
+    headers: new Headers(),
+    json: () => Promise.resolve(body),
+    ok: true
+  } as Response;
+}
+
+function syncPull() {
+  return {
+    cursor: "cursor-1",
+    files: []
+  };
 }
 
 function commentFlags(overrides: Record<string, string> = {}): Record<string, string> {
@@ -225,7 +239,7 @@ function commentPayload(
 
 function expectAgentEnvelope<TData>(stdout: string): CommentAgentEnvelope<TData> {
   const envelope = JSON.parse(stdout) as unknown as CommentAgentEnvelope<TData>;
-  expect([1, 2]).toContain(envelope.format_version);
+  expect(envelope.format_version).toBe(1);
   expect(envelope).toHaveProperty("data");
   expect(envelope).toHaveProperty("context");
   expect(envelope).toHaveProperty("suggested_next_actions");

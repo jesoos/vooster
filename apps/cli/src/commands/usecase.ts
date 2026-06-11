@@ -9,9 +9,14 @@ import {
   usecaseRestoreResponseSchema,
   usecaseShowResponseSchema,
   usecaseUpdateResponseSchema,
+  stakeholderInterestAddResponseSchema,
+  stakeholderInterestRequestSchema,
+  type SuggestedNextAction,
+  type StakeholderInterestAddResponse,
   type UsecaseCreateResponse
 } from "@vooster/contracts";
 
+import { writeAgentErrorEnvelope } from "./agent-error-envelope.js";
 import {
   stakeholderInterestFlagsFrom,
   usecaseArchiveFlagsFrom,
@@ -21,6 +26,7 @@ import {
   usecaseShowFlagsFrom,
   type UsecaseCliFlags
 } from "./usecase-flags.js";
+import { runVerify } from "./verify.js";
 import {
   printStakeholderInterest,
   printUsecase,
@@ -28,15 +34,14 @@ import {
   printUsecaseList,
   printUsecaseRestore,
   printUsecaseShow,
-  printUsecaseUpdate,
-  type StakeholderInterestResponse
+  printUsecaseUpdate
 } from "./usecase-output.js";
 import { buildAgentEnvelope } from "../agent-envelope.js";
 import {
   commonMutationContextFrom,
   runMutationCommand
 } from "../application/mutation-command.js";
-import { deleteJson, fetchJson, patchJson, postJson } from "../http-client.js";
+import { deleteJson, fetchJson, patchJson } from "../http-client.js";
 
 export class UsecaseCommand extends Command {
   static override description = "Manage project use cases.";
@@ -47,8 +52,10 @@ export class UsecaseCommand extends Command {
   };
 
   static override flags = {
+    all: Flags.boolean(),
     "actor-id": Flags.string(),
     "api-url": Flags.string(),
+    archived: Flags.boolean(),
     branch: Flags.string(),
     cursor: Flags.string(),
     "dry-run": Flags.boolean(),
@@ -68,6 +75,7 @@ export class UsecaseCommand extends Command {
     "session-cookie": Flags.string(),
     stakeholder: Flags.string(),
     status: Flags.string(),
+    "test-cmd": Flags.string(),
     title: Flags.string(),
     value: Flags.string()
   };
@@ -118,6 +126,10 @@ export async function runUsecase(
     await restoreUsecase(flags, usecaseId, writeLine);
     return;
   }
+  if (action === "verify") {
+    await runVerify(flags, usecaseId, writeLine);
+    return;
+  }
 
   throw new Error("Missing usecase action.");
 }
@@ -144,22 +156,37 @@ async function setUsecase(
   usecaseId: string | undefined,
   writeLine: (message: string) => void
 ): Promise<void> {
-  const setFlags = usecaseSetFlagsFrom(flags, usecaseId);
-  const response = await patchJson(
-    `${setFlags.apiUrl}/v1/usecases/${setFlags.usecaseId}`,
-    usecasePatchRequestSchema.parse({ [setFlags.field]: setFlags.value }),
-    {
-      Cookie: setFlags.sessionCookie
+  try {
+    const setFlags = usecaseSetFlagsFrom(flags, usecaseId);
+    const response = await patchJson(
+      `${setFlags.apiUrl}/v1/usecases/${setFlags.usecaseId}`,
+      usecasePatchRequestSchema.parse({ [setFlags.field]: setFlags.value }),
+      {
+        Cookie: setFlags.sessionCookie
+      }
+    );
+
+    const body = usecaseUpdateResponseSchema.parse(response.body);
+    if (flags.format === "agent") {
+      writeLine(JSON.stringify(buildAgentEnvelope({ data: body }), null, 2));
+      return;
     }
-  );
 
-  const body = usecaseUpdateResponseSchema.parse(response.body);
-  if (flags.format === "agent") {
-    writeLine(JSON.stringify(buildAgentEnvelope({ data: body }), null, 2));
-    return;
+    printUsecaseUpdate(body, writeLine);
+  } catch (error: unknown) {
+    if (
+      flags.format === "agent" &&
+      writeAgentErrorEnvelope({
+        error,
+        suggestedNextActions: usecaseSetErrorActions(flags),
+        validationMessage: "Invalid use case update.",
+        writeLine
+      })
+    ) {
+      return;
+    }
+    throw error;
   }
-
-  printUsecaseUpdate(body, writeLine);
 }
 
 async function createUsecase(
@@ -190,19 +217,22 @@ async function addStakeholderInterest(
   writeLine: (message: string) => void
 ): Promise<void> {
   const interestFlags = stakeholderInterestFlagsFrom(flags, usecaseId);
-  const response = await postJson(
-    `${interestFlags.apiUrl}/v1/usecases/${interestFlags.usecaseId}/stakeholder-interests`,
+  const body = stakeholderInterestRequestSchema.parse({
+    interest: interestFlags.interest,
+    protection_mechanism: interestFlags.protectionMechanism,
+    stakeholder: interestFlags.stakeholder
+  });
+  await runMutationCommand<StakeholderInterestAddResponse>(
     {
-      interest: interestFlags.interest,
-      protection_mechanism: interestFlags.protectionMechanism,
-      stakeholder: interestFlags.stakeholder
+      body,
+      method: "POST",
+      path: `/v1/usecases/${interestFlags.usecaseId}/stakeholder-interests`,
+      selectData: (responseBody) =>
+        stakeholderInterestAddResponseSchema.parse(responseBody)
     },
-    {
-      Cookie: interestFlags.sessionCookie
-    }
+    commonMutationContextFrom(interestFlags),
+    { format: flags.format, human: printStakeholderInterest, writeLine }
   );
-
-  printStakeholderInterest(response.body as StakeholderInterestResponse, writeLine);
 }
 
 async function listUsecases(
@@ -212,6 +242,7 @@ async function listUsecases(
   const listFlags = usecaseListFlagsFrom(flags);
   const url = new URL(`/v1/projects/${listFlags.projectId}/usecases`, listFlags.apiUrl);
   setSearchParam(url, "actor_id", listFlags.actorId);
+  setSearchParam(url, "archived", listFlags.archived);
   setSearchParam(url, "cursor", listFlags.cursor);
   setSearchParam(url, "level", listFlags.level);
   setSearchParam(url, "limit", listFlags.limit);
@@ -289,6 +320,29 @@ function setSearchParam(url: URL, name: string, value: string | undefined): void
   if (value !== undefined) {
     url.searchParams.set(name, value);
   }
+}
+
+function usecaseSetErrorActions(flags: UsecaseCliFlags): SuggestedNextAction[] {
+  return [
+    ...(flags.field === "level"
+      ? [
+          {
+            command: "vspec usecase set <usecase-id> --field level --value SUMMARY",
+            reason: "Allowed levels are SUMMARY, USER_GOAL, and SUBFUNCTION."
+          }
+        ]
+      : [
+          {
+            command:
+              "vspec usecase set <usecase-id> --field title|level|priority|format|status|scope --value <value>",
+            reason: "Choose one of the supported metadata fields."
+          }
+        ]),
+    {
+      command: "vspec usecase list",
+      reason: "Find an existing use case key before setting metadata."
+    }
+  ];
 }
 
 function agentBodyFrom(body: unknown): {

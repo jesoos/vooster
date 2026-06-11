@@ -25,7 +25,7 @@ type StepAgentEnvelope = {
     };
   };
   dry_run?: boolean;
-  format_version: 1 | 2;
+  format_version: 1;
   status?: "ok" | "error";
   suggested_next_actions: unknown[];
   warnings: unknown[];
@@ -98,6 +98,45 @@ describe("step --format=agent", () => {
         url: "https://api.example.test/v1/steps/step-1"
       }
     ]);
+  });
+
+  test("step edit sends implementation links", async () => {
+    const requests: Array<{ body: unknown; url: string }> = [];
+    stubFetch(editStepBody(), requests);
+    const lines: string[] = [];
+
+    await runStep(
+      stepFlags({
+        "base-revision": "revision-1",
+        implements: "tests/UC-013.feature:scenario_login,src/auth/login.ts"
+      }),
+      "edit",
+      "step-1",
+      (line) => lines.push(line)
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.body).toMatchObject({
+      implements: ["tests/UC-013.feature:scenario_login", "src/auth/login.ts"]
+    });
+  });
+
+  test("step edit rejects malformed implementation links before fetch", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      runStep(
+        stepFlags({
+          "base-revision": "revision-1",
+          implements: "bad ref"
+        }),
+        "edit",
+        "step-1",
+        () => undefined
+      )
+    ).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   test("human step add", async () => {
@@ -200,7 +239,7 @@ function editStepBody() {
 
 function expectAgentEnvelope(lines: string[]): StepAgentEnvelope {
   const envelope = JSON.parse(lines.join("\n")) as unknown as StepAgentEnvelope;
-  expect([1, 2]).toContain(envelope.format_version);
+  expect(envelope.format_version).toBe(1);
   expect(envelope).toHaveProperty("data");
   expect(envelope).toHaveProperty("context");
   expect(envelope).toHaveProperty("suggested_next_actions");

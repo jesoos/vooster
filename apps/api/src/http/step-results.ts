@@ -1,13 +1,16 @@
 import type { FastifyReply } from "fastify";
-import { stepUpdateResponseSchema } from "@vooster/contracts";
+import { stepMoveResponseSchema, stepUpdateResponseSchema } from "@vooster/contracts";
+import type { MoveScenarioStepResult } from "../application/scenario-authoring.js";
 import { activeRewrite, type StepEditingResult } from "../application/step-editing.js";
 import { hardLockProblem, semanticLockProblem } from "./step-lock-support.js";
-import { problem } from "./signup-support.js";
+import { problem, usecaseShowRecoveryActions } from "./signup-support.js";
 
 export function sendStepEditingResult(reply: FastifyReply, result: StepEditingResult) {
   switch (result.status) {
     case "STEP_NOT_FOUND":
-      return reply.code(404).send(problem(404, "Step not found"));
+      return reply
+        .code(404)
+        .send(problem(404, "Step not found", {}, usecaseShowRecoveryActions()));
     case "FORBIDDEN":
       return reply
         .code(403)
@@ -24,6 +27,8 @@ export function sendStepEditingResult(reply: FastifyReply, result: StepEditingRe
         );
     case "EMPTY_ACTION":
       return reply.code(400).send(problem(400, "Step action is required"));
+    case "NO_CHANGES":
+      return reply.code(400).send(noStepChangesProblem());
     case "UNKNOWN_ACTOR":
       return reply.code(422).send(unknownStepActorProblem(result.knownActors));
     case "PASSIVE_ACTION":
@@ -41,6 +46,44 @@ export function sendStepEditingResult(reply: FastifyReply, result: StepEditingRe
         })
       );
   }
+}
+
+export function sendStepMoveResult(
+  reply: FastifyReply,
+  result: MoveScenarioStepResult
+) {
+  switch (result.status) {
+    case "STEP_NOT_FOUND":
+      return reply
+        .code(404)
+        .send(problem(404, "Step not found", {}, usecaseShowRecoveryActions()));
+    case "FORBIDDEN":
+      return reply
+        .code(403)
+        .send(problem(403, "Contact the workspace owner for access"));
+    case "STEP_MOVED":
+      return reply.send(
+        stepMoveResponseSchema.parse({
+          revision: result.revision,
+          scenario_steps: result.scenarioSteps,
+          step: result.step
+        })
+      );
+  }
+}
+
+function noStepChangesProblem() {
+  return problem(
+    400,
+    "No step changes supplied",
+    { editable_fields: ["--action", "--actor", "--implements"] },
+    [
+      {
+        command: "vspec help step edit",
+        reason: "Review editable fields; step edit does not reorder steps."
+      }
+    ]
+  );
 }
 
 function unknownStepActorProblem(knownActorNames: string[]) {

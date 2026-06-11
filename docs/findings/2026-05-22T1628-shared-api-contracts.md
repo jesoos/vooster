@@ -3,6 +3,38 @@ title: Shared API Contracts Plan
 created_at: 2026-05-22T16:28:28Z
 resolved: partial
 status_notes: |
+  2026-06-03: CLI read-path 3-cast slice CLOSED in impact/status/auto-export:
+  `revisionHistoryResponseSchema`, `sessionListResponseSchema`, and
+  `syncPullResponseSchema` now parse the fetched bodies; local response types
+  were removed. Verification: `rg "\.body as" apps/cli/src` returns 0,
+  `pnpm --filter @vooster/cli typecheck` passes, and
+  `pnpm exec vitest run apps/cli` passes (113 files / 210 tests). KEEP partial:
+  central typed CLI client layer and other reviewed contract-wide work remain
+  deferred.
+  Remaining non-contract reads (tracked 2026-06-02, cycle 260602-01 meta-audit
+  #2): only two CLI read sites still cast `response.body as <hand-rolled type>`
+  instead of parsing through a contract — the revision-list read inside
+  `apps/cli/src/commands/impact.ts` (`RevisionListResponse`) and a read in
+  `apps/cli/src/commands/status.ts`. These are the tail of the deferred typed
+  CLI client work; left deferred (not ad-hoc fixed) so the typed-client slice
+  stays one coherent piece.
+  Impact domain CLOSED on 2026-06-02 (cycle 260602-01): the file-based impact
+  variant of `POST /v1/changes/preview` got its own
+  `packages/contracts/src/impact.ts` (request + preview response schemas,
+  reusing common `suggestedNextActionSchema`) rather than polluting change.ts;
+  API `impact-routes.ts` parses the request and CLI `impact.ts` parses the
+  response through the shared schemas, dropping both route-local `previewSchema`
+  and the CLI's hand-rolled `ImpactResponse`. Strict CLI parsing also surfaced a
+  unit-mock that omitted the always-present `reason` on suggested actions; mock
+  corrected. Still partial: central typed CLI client remains deferred.
+  Stakeholder-interest domain CLOSED on 2026-06-02 (cycle 260602-01): add/delete
+  request, params, and add/remove success response schemas moved to
+  `@vooster/contracts` (`packages/contracts/src/stakeholder-interest.ts`); API
+  `stakeholder-interest-routes.ts` and CLI `usecase.ts` now parse through the
+  shared schemas, route-local `interestRequestSchema` removed, and the CLI's
+  hand-rolled `StakeholderInterestResponse` type now aliases the contract type.
+  This was one of the previously-deferred "non-package-shape production
+  surfaces". Still partial: impact route + central typed CLI client remain.
   Auth domain CLOSED on 2026-05-27: OAuth start/callback and device-token
   request bodies/query plus login/signup success response schemas moved to
   `@vooster/contracts`; API and CLI auth paths now parse through the shared

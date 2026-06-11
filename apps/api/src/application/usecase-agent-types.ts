@@ -26,6 +26,8 @@ export type UseCaseShowData = {
     steps: Array<{
       action: string;
       actor: string;
+      id: string;
+      implements: string[];
       invokes: string[];
       step_number: number;
     }>;
@@ -33,7 +35,7 @@ export type UseCaseShowData = {
   }>;
   stakeholder_interests: Array<{ interest: string; stakeholder: string }>;
   title: string;
-  usecase: { id: string; key: string };
+  usecase: StoredUseCase;
 };
 
 export type AgentEnvelope = {
@@ -75,7 +77,6 @@ export type ShowUseCaseInput = {
 export type ShowUseCaseResult =
   | { status: "NOT_FOUND" }
   | { status: "AUTHENTICATION_REQUIRED" }
-  | { status: "ARCHIVED" }
   | { data: UseCaseShowData; status: "SIMPLE"; usecase: StoredUseCase }
   | { revision: string | undefined; status: "REVISION_NOT_FOUND"; usecaseKey: string }
   | { envelope: AgentEnvelope; status: "AGENT_ENVELOPE" };

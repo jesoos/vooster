@@ -30,6 +30,11 @@ describe("step editing result responses", () => {
         expectedStatus: 400,
         result: { status: "EMPTY_ACTION" },
         title: "Step action is required"
+      },
+      {
+        expectedStatus: 400,
+        result: { status: "NO_CHANGES" },
+        title: "No step changes supplied"
       }
     ];
 
@@ -178,6 +183,7 @@ function step(): StoredStep {
     action: "Pays the order.",
     actor_id: "actor-1",
     id: "step-1",
+    implements: [],
     invokes: [],
     is_system_step: false,
     notes: null,

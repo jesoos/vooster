@@ -36,7 +36,14 @@ describe("usecase agent application", () => {
       { interest: "Checkout revenue is protected.", stakeholder: "Product Manager" }
     ]);
     expect(result.data.scenarios[0]?.steps).toEqual([
-      { action: "Places an order.", actor: "Customer", invokes: [], step_number: 1 }
+      {
+        action: "Places an order.",
+        actor: "Customer",
+        id: "step-1",
+        implements: [],
+        invokes: [],
+        step_number: 1
+      }
     ]);
   });
 
@@ -116,6 +123,8 @@ describe("usecase agent application", () => {
       {
         action: "Charges the card.",
         actor: "Customer",
+        id: "step-callee",
+        implements: [],
         invokes: ["CHK-006"],
         step_number: 1
       }
@@ -151,7 +160,14 @@ describe("usecase agent application", () => {
 
     expect(data.primary_actor).toEqual({ name: "System" });
     expect(data.scenarios[0]?.steps).toEqual([
-      { action: "Places an order.", actor: "System", invokes: [], step_number: 1 }
+      {
+        action: "Places an order.",
+        actor: "System",
+        id: "step-1",
+        implements: [],
+        invokes: [],
+        step_number: 1
+      }
     ]);
     expect(data.stakeholder_interests).toEqual([
       { interest: "Checkout revenue is protected.", stakeholder: "" }
@@ -188,11 +204,42 @@ describe("usecase agent application", () => {
       warnings: []
     });
     expect(result.envelope.data.scenarios[0]?.steps).toEqual([
-      { action: "Places an order.", actor: "Customer", invokes: [], step_number: 1 }
+      {
+        action: "Places an order.",
+        actor: "Customer",
+        id: "step-1",
+        implements: [],
+        invokes: [],
+        step_number: 1
+      }
     ]);
     expect(result.envelope.suggested_next_actions).toContainEqual({
       command: "vspec change propose CHK-001",
       reason: "Propose a reviewed spec change after reading the pinned snapshot."
+    });
+  });
+
+  test("exposes editable step ids and the latest revision as the mutation base", async () => {
+    const result = await showUseCaseForAgent(
+      depsFor({
+        latestRevision: revision("revision-latest")
+      }),
+      input({ format: "agent", requestId: "req-agent-fetch" })
+    );
+
+    expect(result.status).toBe("AGENT_ENVELOPE");
+    if (result.status !== "AGENT_ENVELOPE") {
+      throw new Error("expected agent envelope");
+    }
+    expect(result.envelope.context.revision).toBe("revision-latest");
+    expect(result.envelope.data.usecase).toMatchObject({
+      current_revision_id: "revision-latest",
+      id: "usecase-1",
+      key: "CHK-001"
+    });
+    expect(result.envelope.data.scenarios[0]?.steps[0]).toMatchObject({
+      id: "step-1",
+      step_number: 1
     });
   });
 
@@ -246,12 +293,16 @@ describe("usecase agent application", () => {
     await expect(
       showUseCaseForAgent(depsFor({ membership: undefined }), input())
     ).resolves.toEqual({ status: "AUTHENTICATION_REQUIRED" });
-    await expect(
-      showUseCaseForAgent(
-        depsFor({ usecase: usecase({ archived_at: "2026-05-20T00:00:00.000Z" }) }),
-        input()
-      )
-    ).resolves.toEqual({ status: "ARCHIVED" });
+    const archivedResult = await showUseCaseForAgent(
+      depsFor({ usecase: usecase({ archived_at: "2026-05-20T00:00:00.000Z" }) }),
+      input()
+    );
+    expect(archivedResult.status).toBe("AGENT_ENVELOPE");
+    if (archivedResult.status === "AGENT_ENVELOPE") {
+      expect(archivedResult.envelope.warnings).toContainEqual(
+        expect.objectContaining({ type: "ARCHIVED_READ_ONLY" })
+      );
+    }
     await expect(
       showUseCaseForAgent(depsFor(), input({ requestedRevision: "missing-revision" }))
     ).resolves.toEqual({
@@ -265,6 +316,7 @@ describe("usecase agent application", () => {
 function depsFor(
   options: {
     found?: { projectId: string; usecase: StoredUseCase };
+    latestRevision?: StoredRevision;
     membership?: StoredMembership;
     scenariosByUseCase?: Map<string, StoredScenario[]>;
     session?: StoredWorkSession;
@@ -281,7 +333,7 @@ function depsFor(
       "membership" in options ? options.membership : membership()
     ),
     projectStore: projectStore(),
-    revisionStore: revisionStore(),
+    revisionStore: revisionStore(options.latestRevision),
     scenarioStore: scenarioStore(options.scenariosByUseCase),
     stakeholderInterestStore: stakeholderInterestStore(),
     stakeholderStore: stakeholderStore(),
@@ -341,10 +393,10 @@ function projectStore(): ProjectStore {
   };
 }
 
-function revisionStore(): RevisionStore {
+function revisionStore(latestRevision?: StoredRevision): RevisionStore {
   return {
     findRevisionById: () => Promise.resolve(undefined),
-    latestRevision: () => Promise.resolve(undefined),
+    latestRevision: () => Promise.resolve(latestRevision),
     listRevisions: () =>
       Promise.resolve([revision("revision-current"), revision("revision-pinned")]),
     nextVersionNumber: () => Promise.resolve(1),
@@ -531,7 +583,8 @@ function step(overrides: Partial<StoredStep> = {}): StoredStep {
     order_index: 0,
     scenario_id: "scenario-1",
     step_number: 1,
-    ...overrides
+    ...overrides,
+    implements: overrides.implements ?? []
   };
 }
 

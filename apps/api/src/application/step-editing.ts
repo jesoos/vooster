@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { usesPassiveVoice } from "./passive-voice.js";
 import type {
   StoredActor,
   StoredLock,
@@ -32,6 +33,7 @@ export type StepEditingInput = {
   actorName: string | undefined;
   baseRevision: string;
   force: boolean;
+  implementationRefs?: string[];
   notes: string | undefined;
   stepId: string;
   userId: string | undefined;
@@ -47,6 +49,7 @@ export type StepEditingResult =
       usecase: StoredUseCase;
     }
   | { status: "EMPTY_ACTION" }
+  | { status: "NO_CHANGES" }
   | { knownActors: string[]; status: "UNKNOWN_ACTOR" }
   | { action: string; status: "PASSIVE_ACTION" }
   | { lock: StoredLock; usecase: StoredUseCase; status: "HARD_LOCKED" }
@@ -86,6 +89,9 @@ export async function editStep(
   if (input.action !== undefined && input.action.trim().length === 0) {
     return { status: "EMPTY_ACTION" };
   }
+  if (!hasRequestedChange(input)) {
+    return { status: "NO_CHANGES" };
+  }
   if (input.action !== undefined && !input.force && usesPassiveVoice(input.action)) {
     return { action: input.action, status: "PASSIVE_ACTION" };
   }
@@ -110,6 +116,7 @@ export async function editStep(
     ...found.step,
     action: input.action ?? found.step.action,
     actor_id: actor.actor?.id ?? found.step.actor_id,
+    implements: input.implementationRefs ?? found.step.implements,
     notes: input.notes ?? found.step.notes
   };
   await deps.stepStore.updateStep(updated);
@@ -125,6 +132,15 @@ export async function editStep(
     status: "UPDATED",
     step: updated
   };
+}
+
+function hasRequestedChange(input: StepEditingInput): boolean {
+  return (
+    input.action !== undefined ||
+    input.actorName !== undefined ||
+    input.implementationRefs !== undefined ||
+    input.notes !== undefined
+  );
 }
 
 async function actorForEdit(
@@ -151,7 +167,12 @@ async function actorForEdit(
 }
 
 function cosmeticEdit(input: StepEditingInput, actor: StoredActor | undefined) {
-  return input.action === undefined && actor === undefined && input.notes !== undefined;
+  return (
+    input.action === undefined &&
+    actor === undefined &&
+    input.implementationRefs === undefined &&
+    input.notes !== undefined
+  );
 }
 
 async function stepWithUseCase(
@@ -186,7 +207,7 @@ async function currentRevisionId(revisionStore: RevisionStore, usecase: StoredUs
 }
 
 async function appendUseCaseRevision(
-  deps: Pick<StepEditingDeps, "idFactory" | "revisionStore">,
+  deps: Pick<StepEditingDeps, "idFactory" | "revisionStore" | "useCaseStore">,
   usecase: StoredUseCase,
   changeSummary: string,
   severity: "BREAKING" | "COSMETIC"
@@ -200,7 +221,12 @@ async function appendUseCaseRevision(
     snapshot: { ...usecase },
     version_number: await deps.revisionStore.nextVersionNumber(usecase.id)
   };
+  revision.snapshot = { ...usecase, current_revision_id: revision.id };
   await deps.revisionStore.saveRevision(revision);
+  await deps.useCaseStore.updateUseCase({
+    ...usecase,
+    current_revision_id: revision.id
+  });
   return revision;
 }
 
@@ -211,10 +237,6 @@ async function affectedSessionIds(
   return (await workSessionStore.listWorkSessionsForUseCase(usecaseId))
     .filter((session) => session.status === "ACTIVE")
     .map((session) => session.id);
-}
-
-export function usesPassiveVoice(action: string): boolean {
-  return /^.+?\s+is\s+\w+ed\.?$/i.test(action.trim());
 }
 
 export function activeRewrite(action: string): string {
